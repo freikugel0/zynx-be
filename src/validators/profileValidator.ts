@@ -13,7 +13,11 @@ export const updateProfileSchema = z.object({
 });
 
 export const getProfileSchema = z.object({
-  userId: z
+  slug: z
     .string()
-    .regex(/^\d+$/, { message: "userId must be a valid numeric ID" }),
+    .trim()
+    .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, {
+      message:
+        "slug must be lowercase, alphanumeric and may contain single dashes (e.g. steven-firdaus)",
+    }),
 });

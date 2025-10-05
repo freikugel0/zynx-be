@@ -13,8 +13,7 @@ export const createProfile = async (req: Request, res: Response) => {
       return res.status(404).json(error("User not found", []));
     }
 
-   const photo = req.file ? req.file.filename : undefined;
-
+    const photo = req.file ? req.file.filename : undefined;
 
     const updated = await prisma.user.update({
       where: { id: userId },
@@ -41,6 +40,9 @@ export const updateProfile = async (req: Request, res: Response) => {
     const updated = await prisma.user.update({
       where: { id: userId },
       data: { fullName, position, phone, ...(photo && { photo }) },
+      omit: {
+        password: true,
+      },
     });
 
     return res
@@ -54,11 +56,11 @@ export const updateProfile = async (req: Request, res: Response) => {
 
 // ✅ GET /profile/:userId
 export const getProfileById = async (req: Request, res: Response) => {
-  const { userId } = req.params;
+  const { slug } = req.params;
 
   try {
     const profile = await prisma.user.findUnique({
-      where: { id: Number(userId) },
+      where: { slug: slug },
       select: {
         id: true,
         fullName: true,

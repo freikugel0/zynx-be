@@ -5,7 +5,12 @@ import { error } from "../utils/response";
 export const validate =
   (schema: ZodSchema<any>, source: "body" | "params" | "query" = "body") =>
   (req: Request, res: Response, next: NextFunction) => {
-    const data = source === "body" ? req.body : source === "params" ? req.params : req.query;
+    const data =
+      source === "body"
+        ? req.body
+        : source === "params"
+          ? req.params
+          : req.query;
     const result = schema.safeParse(data);
 
     if (!result.success) {
