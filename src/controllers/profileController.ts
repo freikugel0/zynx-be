@@ -54,7 +54,7 @@ export const updateProfile = async (req: Request, res: Response) => {
   }
 };
 
-// ✅ GET /profile/:userId
+// ✅ GET /profile/:slug
 export const getProfileById = async (req: Request, res: Response) => {
   const { slug } = req.params;
 

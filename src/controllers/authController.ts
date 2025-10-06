@@ -4,7 +4,7 @@ import jwt from "jsonwebtoken";
 import prisma from "../config/prisma";
 import { success, error } from "../utils/response";
 
-// 🔧 Fungsi slugify langsung di sini
+// 🔧 Fungsi slugify
 const slugify = (text: string): string => {
   return text
     .toLowerCase()
@@ -18,16 +18,13 @@ export const register = async (req: Request, res: Response) => {
   try {
     const { email, password, fullName, username } = req.body;
 
-    // cek email
     const userExist = await prisma.user.findUnique({ where: { email } });
     if (userExist) {
       return res.status(409).json(error("User is already registered", []));
     }
 
-    // hash password
     const hashed = await bcrypt.hash(password, 10);
 
-    // simpan user
     const user = await prisma.user.create({
       data: {
         email,
@@ -39,13 +36,13 @@ export const register = async (req: Request, res: Response) => {
     });
 
     return res.status(201).json(
-      success("User is successfully created", {
+      success("User successfully created", {
         id: user.id,
         email: user.email,
         username: user.username,
         fullName: user.fullName,
         slug: user.slug,
-      }),
+      })
     );
   } catch (err: any) {
     console.error("REGISTER ERROR:", err);
@@ -53,26 +50,40 @@ export const register = async (req: Request, res: Response) => {
   }
 };
 
-// LOGIN
+// LOGIN — simpan token di cookies
 export const login = async (req: Request, res: Response) => {
   try {
     const { email, password } = req.body;
 
     const user = await prisma.user.findUnique({ where: { email } });
-    if (!user) {
-      return res.status(404).json(error("User not found", []));
-    }
+    if (!user) return res.status(404).json(error("User not found", []));
 
     const match = await bcrypt.compare(password, user.password);
-    if (!match) {
-      return res.status(400).json(error("Wrong password", []));
-    }
+    if (!match) return res.status(400).json(error("Wrong password", []));
 
     const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET!, {
       expiresIn: "1d",
     });
 
-    return res.status(200).json(success("Login successful", { token }));
+    // Simpan token ke cookies
+    res.cookie("token", token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax", // ubah ke "none" jika frontend beda domain
+      maxAge: 24 * 60 * 60 * 1000, // 1 hari
+    });
+
+    return res.status(200).json(
+      success("Login successful", {
+        user: {
+          id: user.id,
+          email: user.email,
+          username: user.username,
+          fullName: user.fullName,
+          slug: user.slug,
+        },
+      })
+    );
   } catch (err: any) {
     console.error("LOGIN ERROR:", err);
     return res.status(500).json(error("Internal Server Error", [err.message]));
@@ -83,9 +94,7 @@ export const login = async (req: Request, res: Response) => {
 export const me = async (req: Request, res: Response) => {
   try {
     const userId = (req as any).userId;
-    if (!userId) {
-      return res.status(401).json(error("Unauthorized", []));
-    }
+    if (!userId) return res.status(401).json(error("Unauthorized", []));
 
     const user = await prisma.user.findUnique({
       where: { id: userId },
@@ -105,5 +114,27 @@ export const me = async (req: Request, res: Response) => {
   } catch (err: any) {
     console.error("ME ERROR:", err);
     return res.status(500).json(error("Internal Server Error", [err.message]));
+  }
+};
+
+// LOGOUT — hapus cookie token
+export const logout = async (req: Request, res: Response) => {
+  try {
+    res.clearCookie("token", {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Logout successful, cookie cleared",
+    });
+  } catch (err: any) {
+    console.error("LOGOUT ERROR:", err);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to logout",
+    });
   }
 };
