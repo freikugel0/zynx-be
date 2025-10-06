@@ -8,9 +8,9 @@ import { success, error } from "../utils/response";
 const slugify = (text: string): string => {
   return text
     .toLowerCase()
-    .replace(/[^a-z0-9\s-]/g, "") 
+    .replace(/[^a-z0-9\s-]/g, "")
     .trim()
-    .replace(/\s+/g, "-"); 
+    .replace(/\s+/g, "-");
 };
 
 // REGISTER
@@ -45,7 +45,7 @@ export const register = async (req: Request, res: Response) => {
         username: user.username,
         fullName: user.fullName,
         slug: user.slug,
-      })
+      }),
     );
   } catch (err: any) {
     console.error("REGISTER ERROR:", err);
