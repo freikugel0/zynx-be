@@ -42,7 +42,7 @@ export const register = async (req: Request, res: Response) => {
         username: user.username,
         fullName: user.fullName,
         slug: user.slug,
-      })
+      }),
     );
   } catch (err: any) {
     console.error("REGISTER ERROR:", err);
@@ -65,24 +65,10 @@ export const login = async (req: Request, res: Response) => {
       expiresIn: "1d",
     });
 
-    // Simpan token ke cookies
-    res.cookie("token", token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax", // ubah ke "none" jika frontend beda domain
-      maxAge: 24 * 60 * 60 * 1000, // 1 hari
-    });
-
     return res.status(200).json(
       success("Login successful", {
-        user: {
-          id: user.id,
-          email: user.email,
-          username: user.username,
-          fullName: user.fullName,
-          slug: user.slug,
-        },
-      })
+        token,
+      }),
     );
   } catch (err: any) {
     console.error("LOGIN ERROR:", err);
