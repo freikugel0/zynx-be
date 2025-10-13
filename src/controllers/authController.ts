@@ -6,27 +6,40 @@ import prisma from "../config/prisma";
 import { success, error } from "../utils/response";
 import { sendVerificationEmail } from "../utils/emailService";
 
-// 🔧 Fungsi slugify
-const slugify = (text: string): string => {
-  return text
+async function generateUniqueSlug(fullName: string) {
+  const baseSlug = fullName
     .toLowerCase()
     .replace(/[^a-z0-9\s-]/g, "")
     .trim()
     .replace(/\s+/g, "-");
-};
+  let uniqueSlug = baseSlug;
+  let counter = 0;
+
+  while (await prisma.user.findUnique({ where: { slug: uniqueSlug } })) {
+    counter++;
+    uniqueSlug = `${baseSlug}-${counter}`;
+  }
+
+  return uniqueSlug;
+}
 
 // 🟢 REGISTER — kirim email verifikasi
 export const register = async (req: Request, res: Response) => {
   try {
     const { email, password, fullName, username } = req.body;
 
-    const userExist = await prisma.user.findUnique({ where: { email } });
+    const userExist = await prisma.user.findFirst({
+      where: {
+        OR: [{ email }, { username }],
+      },
+    });
     if (userExist) {
       return res.status(409).json(error("User already registered", []));
     }
 
     const hashed = await bcrypt.hash(password, 10);
     const verificationToken = crypto.randomBytes(32).toString("hex");
+    const slug = await generateUniqueSlug(fullName);
 
     const user = await prisma.user.create({
       data: {
@@ -34,7 +47,7 @@ export const register = async (req: Request, res: Response) => {
         password: hashed,
         fullName,
         username,
-        slug: slugify(fullName),
+        slug,
         verificationToken,
         isVerified: false,
       },
@@ -44,11 +57,15 @@ export const register = async (req: Request, res: Response) => {
     await sendVerificationEmail(user.email, verificationToken);
 
     return res.status(201).json(
-      success("User registered. Please check your email to verify your account.", {
-        id: user.id,
-        email: user.email,
-        username: user.username,
-      })
+      success(
+        "User registered. Please check your email to verify your account.",
+        {
+          id: user.id,
+          email: user.email,
+          username: user.username,
+          slug,
+        },
+      ),
     );
   } catch (err: any) {
     console.error("REGISTER ERROR:", err);
@@ -60,17 +77,27 @@ export const register = async (req: Request, res: Response) => {
 export const verifyEmail = async (req: Request, res: Response) => {
   try {
     const { token } = req.query;
-    if (!token) return res.status(400).json(error("Invalid or missing token", []));
+    if (!token)
+      return res.status(400).json(error("Invalid or missing token", []));
 
-    const user = await prisma.user.findFirst({ where: { verificationToken: String(token) } });
-    if (!user) return res.status(404).json(error("Invalid or expired verification token", []));
+    const user = await prisma.user.findFirst({
+      where: { verificationToken: String(token) },
+    });
+    if (!user)
+      return res
+        .status(404)
+        .json(error("Invalid or expired verification token", []));
 
     await prisma.user.update({
       where: { id: user.id },
       data: { isVerified: true, verificationToken: null },
     });
 
-    return res.status(200).json(success("Email verified successfully! You can now log in.", []));
+    return res
+      .status(200)
+      .json(success("Email verified successfully! You can now log in.", []));
+    // Atau redirect ke UI kamu:
+    // return res.redirect(process.env.APP_URL + "/auth/verified");
   } catch (err: any) {
     console.error("VERIFY EMAIL ERROR:", err);
     return res.status(500).json(error("Internal Server Error", [err.message]));
@@ -86,7 +113,9 @@ export const login = async (req: Request, res: Response) => {
     if (!user) return res.status(404).json(error("User not found", []));
 
     if (!user.isVerified) {
-      return res.status(403).json(error("Please verify your email before logging in.", []));
+      return res
+        .status(403)
+        .json(error("Please verify your email before logging in.", []));
     }
 
     const match = await bcrypt.compare(password, user.password);
@@ -94,6 +123,7 @@ export const login = async (req: Request, res: Response) => {
 
     const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET!, { expiresIn: "1d" });
 
+    // Set httpOnly cookie (lebih aman). Masih kembalikan token di body untuk backward-compat.
     res.cookie("token", token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
@@ -103,14 +133,8 @@ export const login = async (req: Request, res: Response) => {
 
     return res.status(200).json(
       success("Login successful", {
-        user: {
-          id: user.id,
-          email: user.email,
-          username: user.username,
-          fullName: user.fullName,
-          slug: user.slug,
-        },
-      })
+        token,
+      }),
     );
   } catch (err: any) {
     console.error("LOGIN ERROR:", err);
