@@ -2,16 +2,8 @@ import { Router } from "express";
 import { authMiddleware } from "../middlewares/authMiddleware";
 import { validate } from "../middlewares/validate";
 import { upload } from "../config/multer";
-import {
-  createProfile,
-  updateProfile,
-  getProfileById,
-} from "../controllers/profileController";
-import {
-  createProfileSchema,
-  updateProfileSchema,
-  getProfileSchema,
-} from "../validators/profileValidator";
+import {createProfile, updateProfile, getProfileById} from "../controllers/profileController";
+import {createProfileSchema,updateProfileSchema,getProfileSchema} from "../validators/profileValidator";
 
 const router = Router();
 

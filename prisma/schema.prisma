@@ -8,20 +8,35 @@ datasource db {
 }
 
 model User {
-  id             Int      @id @default(autoincrement())
-  email          String   @unique
-  password       String
-  username       String   @unique
-  fullName       String
-  slug           String   @unique
-  position       String?
-  phone          String?
-  photo          String?
-  isVerified     Boolean  @default(false)
+  id                Int        @id @default(autoincrement())
+  email             String     @unique
+  password          String
+  username          String     @unique
+  fullName          String
+  slug              String     @unique
+  position          String?
+  phone             String?
+  photo             String?
+  isVerified        Boolean    @default(false)
   verificationToken String?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+
+  // Relasi ke Personal
+  personal          Personal?
 }
 
+model Personal {
+  id          Int      @id @default(autoincrement())
+  jobTitle    String?
+  bio         String?
+  company     String?
+  role        String?
+  socialLinks Json?    // disimpan dalam bentuk JSON (bisa menampung banyak link)
+  userId      Int      @unique
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-
+  // Relasi ke User
+  user        User     @relation(fields: [userId], references: [id])
+}
